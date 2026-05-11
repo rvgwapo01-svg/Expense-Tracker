@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Expense Tracker{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garant:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ── Dark Theme ── */
+        [data-theme="dark"] {
+            --bg-deep:       #0a0c10;
+            --bg-card:       #111318;
+            --bg-elevated:   #181c24;
+            --bg-hover:      #1e2330;
+            --gold:          #c9a84c;
+            --gold-light:    #e8c97a;
+            --gold-dim:      #8a6e2f;
+            --text-primary:  #f0ece0;
+            --text-secondary:#9a957f;
+            --text-muted:    #5c5847;
+            --border:        rgba(201,168,76,0.12);
+            --border-hover:  rgba(201,168,76,0.35);
+            --shadow:        0 8px 32px rgba(0,0,0,0.6);
+            --danger:        #c0392b;
+            --danger-light:  #e74c3c;
+            --success-light: #2ecc71;
+            --table-head:    rgba(255,255,255,0.03);
+            --table-row:     rgba(255,255,255,0.04);
+        }
+
+        /* ── Light Theme ── */
+        [data-theme="light"] {
+            --bg-deep:       #f4f5f7;
+            --bg-card:       #ffffff;
+            --bg-elevated:   #f9fafb;
+            --bg-hover:      #f0f2f5;
+            --gold:          #a07830;
+            --gold-light:    #7a5c20;
+            --gold-dim:      #c9a84c;
+            --text-primary:  #1a1a2e;
+            --text-secondary:#4a4a6a;
+            --text-muted:    #9a9ab0;
+            --border:        rgba(0,0,0,0.08);
+            --border-hover:  rgba(160,120,48,0.4);
+            --shadow:        0 4px 20px rgba(0,0,0,0.08);
+            --danger:        #c0392b;
+            --danger-light:  #e74c3c;
+            --success-light: #27ae60;
+            --table-head:    #f4f5f7;
+            --table-row:     rgba(0,0,0,0.02);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .page-wrap { display: flex; min-height: 100vh; }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 250px; flex-shrink: 0;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            position: sticky; top: 0; height: 100vh;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .sidebar-brand {
+            padding: 28px 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-icon {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; margin-bottom: 10px;
+        }
+
+        .sidebar-brand h1 {
+            font-family: 'Cormorant Garant', serif;
+            font-size: 20px; font-weight: 700;
+            color: var(--text-primary); line-height: 1.2;
+        }
+
+        .sidebar-brand p {
+            font-size: 11px; color: var(--text-muted);
+            margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em;
+        }
+
+        .sidebar-user {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .user-pill { display: flex; align-items: center; gap: 10px; }
+
+        .user-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700;
+            color: white; text-transform: uppercase; flex-shrink: 0;
+        }
+
+        .user-info small { display: block; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+        .user-info span  { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+
+        .sidebar-nav {
+            flex: 1; padding: 16px 12px;
+            display: flex; flex-direction: column; gap: 3px;
+        }
+
+        .nav-label {
+            font-size: 10px; font-weight: 600; color: var(--text-muted);
+            letter-spacing: 0.12em; text-transform: uppercase;
+            padding: 0 10px; margin: 10px 0 6px;
+        }
+
+        .nav-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 12px; border-radius: 8px;
+            text-decoration: none; color: var(--text-secondary);
+            font-size: 14px; font-weight: 400;
+            transition: all 0.2s; border: 1px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+
+        .nav-link.active {
+            background: rgba(201,168,76,0.1);
+            color: var(--gold);
+            border-color: var(--border-hover);
+            font-weight: 500;
+        }
+
+        .sidebar-footer {
+            padding: 16px 12px;
+            border-top: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 4px;
+        }
+
+        .nav-link.logout { color: var(--danger-light); opacity: 0.75; }
+        .nav-link.logout:hover { opacity: 1; background: rgba(231,76,60,0.08); }
+
+        /* ── Theme Toggle ── */
+        .theme-toggle {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 12px; border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            margin-bottom: 4px;
+        }
+
+        .theme-toggle span { font-size: 13px; color: var(--text-secondary); }
+
+        .toggle-switch {
+            width: 40px; height: 22px; position: relative;
+            cursor: pointer;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-track {
+            position: absolute; inset: 0;
+            background: var(--bg-hover);
+            border-radius: 11px; border: 1px solid var(--border-hover);
+            transition: background 0.3s;
+        }
+
+        .toggle-thumb {
+            position: absolute; top: 3px; left: 3px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: var(--gold);
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-track { background: #e8f4fd; }
+        .toggle-switch input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: #3498db; }
+
+        /* ── Main ── */
+        .main-content {
+            flex: 1; padding: 36px 44px;
+            overflow-y: auto;
+            animation: fadeIn 0.35s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .page-header { margin-bottom: 30px; }
+        .page-header .breadcrumb { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .page-header h2 { font-family: 'Cormorant Garant', serif; font-size: 32px; font-weight: 700; letter-spacing: -0.01em; }
+        .page-header p  { font-size: 14px; color: var(--text-secondary); margin-top: 5px; }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px; padding: 26px;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.2s;
+        }
+        .card:hover { border-color: var(--border-hover); }
+
+        /* ── Stats ── */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 18px; margin-bottom: 28px; }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px; padding: 22px;
+            transition: all 0.25s;
+        }
+        .stat-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+        .stat-icon  { font-size: 26px; margin-bottom: 12px; display: block; }
+        .stat-value { font-family: 'Cormorant Garant', serif; font-size: clamp(16px, 2.2vw, 30px); font-weight: 700; color: var(--gold); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+        .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 11px 22px; border-radius: 8px;
+            font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 500;
+            cursor: pointer; border: none; text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-gold    { background: linear-gradient(135deg, var(--gold-dim), var(--gold)); color: white; }
+        .btn-gold:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-outline { background: transparent; border: 1px solid var(--border-hover); color: var(--text-primary); }
+        .btn-outline:hover { background: var(--bg-hover); border-color: var(--gold); color: var(--gold); }
+        .btn-danger  { background: rgba(192,57,43,0.12); border: 1px solid rgba(231,76,60,0.25); color: var(--danger-light); }
+        .btn-danger:hover { background: rgba(192,57,43,0.25); }
+        .btn-sm { padding: 7px 14px; font-size: 13px; }
+
+        /* ── Forms ── */
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.07em; }
+        .form-control {
+            width: 100%; padding: 11px 14px;
+            background: var(--bg-elevated); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary);
+            font-family: 'Outfit', sans-serif; font-size: 14px; outline: none;
+            transition: all 0.2s;
+        }
+        .form-control:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,0.1); }
+        .form-control::placeholder { color: var(--text-muted); }
+        select.form-control option { background: var(--bg-card); color: var(--text-primary); }
+
+        /* ── Table ── */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead th {
+            padding: 11px 14px; text-align: left;
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.1em;
+            border-bottom: 1px solid var(--border);
+            background: var(--table-head);
+        }
+        tbody tr { border-bottom: 1px solid var(--table-row); transition: background 0.15s; }
+        tbody tr:hover { background: var(--bg-hover); }
+        tbody td { padding: 13px 14px; color: var(--text-secondary); vertical-align: middle; }
+        .amount-cell { font-family: 'Cormorant Garant', serif; font-size: clamp(12px, 1.2vw, 16px); font-weight: 600; color: var(--gold); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* ── Badges ── */
+        .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+        .badge-food      { background: rgba(46,204,113,0.12);  color: #27ae60;  border: 1px solid rgba(46,204,113,0.25); }
+        .badge-transport { background: rgba(52,152,219,0.12);  color: #2980b9;  border: 1px solid rgba(52,152,219,0.25); }
+        .badge-shopping  { background: rgba(155,89,182,0.12);  color: #8e44ad;  border: 1px solid rgba(155,89,182,0.25); }
+        .badge-health    { background: rgba(231,76,60,0.12);   color: #c0392b;  border: 1px solid rgba(231,76,60,0.25); }
+        .badge-bills     { background: rgba(241,196,15,0.12);  color: #d4ac0d;  border: 1px solid rgba(241,196,15,0.25); }
+        .badge-general   { background: rgba(127,140,141,0.12); color: #7f8c8d;  border: 1px solid rgba(127,140,141,0.25); }
+        .badge-other     { background: rgba(230,126,34,0.12);  color: #d35400;  border: 1px solid rgba(230,126,34,0.25); }
+
+        /* ── Flash ── */
+        .flash-container { margin-bottom: 20px; }
+        .flash { padding: 13px 18px; border-radius: 8px; font-size: 14px; display: flex; align-items: center; gap: 9px; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+        .flash-success { background: rgba(39,174,96,0.1);  border: 1px solid rgba(39,174,96,0.25);  color: var(--success-light); }
+        .flash-error   { background: rgba(192,57,43,0.1);  border: 1px solid rgba(192,57,43,0.25);  color: var(--danger-light); }
+        .flash-info    { background: rgba(41,128,185,0.1); border: 1px solid rgba(41,128,185,0.25); color: #5dade2; }
+
+        /* ── Misc ── */
+        .divider { height: 1px; background: var(--border); margin: 22px 0; }
+        .empty-state { text-align: center; padding: 50px 20px; }
+        .empty-state .empty-icon { font-size: 46px; margin-bottom: 14px; opacity: 0.3; }
+        .empty-state h3 { font-family: 'Cormorant Garant', serif; font-size: 20px; color: var(--text-secondary); margin-bottom: 7px; }
+        .empty-state p  { font-size: 14px; color: var(--text-muted); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-deep); }
+        ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+
+        /* ══════════════════════════════════════════════════
+           BALANCE THIS MONTH — SIDEBAR WIDGET
+           ══════════════════════════════════════════════════ */
+        .sb-widget {
+            padding: 12px 16px 14px;
+            margin: 6px 0 4px;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            background: rgba(201,168,76,0.03);
+        }
+
+        /* Header row */
+        .sb-widget-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .sb-widget-title {
+            font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+            text-transform: uppercase; color: var(--text-muted);
+        }
+        .sb-edit-btn {
+            background: none; border: none; cursor: pointer;
+            font-size: 12px; padding: 3px 6px; border-radius: 5px;
+            color: var(--text-muted); line-height: 1; transition: all 0.18s;
+        }
+        .sb-edit-btn:hover { color: var(--gold); background: rgba(201,168,76,0.1); }
+
+        /* Remaining balance display */
+        .sb-remaining {
+            font-family: 'Cormorant Garant', serif;
+            font-size: 28px; font-weight: 700; line-height: 1.0;
+            word-break: break-word; overflow-wrap: anywhere;
+            transition: color 0.3s; margin-bottom: 6px;
+        }
+        .sb-remaining.ok     { color: #2ecc71; }
+        .sb-remaining.warn   { color: #f39c12; }
+        .sb-remaining.danger { color: var(--danger-light); }
+        .sb-remaining.unset  {
+            color: var(--text-muted); font-size: 14px;
+            font-family: 'Outfit', sans-serif; font-weight: 400;
+        }
+        .sb-remaining.preview { opacity: 0.75; }
+
+        /* Budget/spent breakdown */
+        .sb-breakdown {
+            display: flex; flex-direction: column; gap: 3px;
+            margin-bottom: 10px;
+        }
+        .sb-breakdown-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 10.5px;
+        }
+        .sb-breakdown-row span:first-child { color: var(--text-muted); }
+        .sb-breakdown-row span:last-child  { color: var(--text-secondary); font-weight: 500; }
+        .sb-breakdown-row.spent span:last-child { color: var(--danger-light); }
+        .sb-breakdown-row.balance span:last-child { color: #2ecc71; }
+        .sb-breakdown-row.balance.warn span:last-child { color: #f39c12; }
+        .sb-breakdown-row.balance.danger span:last-child { color: var(--danger-light); }
+
+        /* Progress bar */
+        .sb-bar-wrap {
+            height: 5px; background: var(--bg-deep);
+            border-radius: 3px; overflow: hidden; margin-bottom: 10px;
+        }
+        .sb-bar-fill {
+            height: 100%; border-radius: 3px; background: #2ecc71;
+            transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.3s;
+        }
+        .sb-bar-fill.warn   { background: #f39c12; }
+        .sb-bar-fill.danger { background: var(--danger-light); }
+
+        /* Edit form */
+        .sb-edit-form {
+            display: none; flex-direction: column; gap: 8px;
+            margin-bottom: 10px;
+        }
+        .sb-edit-form.open { display: flex; }
+        .sb-input-row { display: flex; gap: 6px; }
+        .sb-input {
+            flex: 1; min-width: 0; padding: 8px 10px;
+            background: var(--bg-elevated); border: 1px solid var(--border);
+            border-radius: 7px; color: var(--text-primary);
+            font-family: 'Cormorant Garant', serif;
+            font-size: 15px; font-weight: 600;
+            outline: none; transition: border-color 0.2s; box-sizing: border-box;
+        }
+        .sb-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,168,76,0.1); }
+        .sb-input::placeholder {
+            font-family: 'Outfit', sans-serif; font-size: 12px;
+            font-weight: 400; color: var(--text-muted);
+        }
+        .sb-save-btn {
+            flex-shrink: 0; padding: 8px 11px; border-radius: 7px;
+            background: rgba(201,168,76,0.16); border: 1px solid var(--border-hover);
+            color: var(--gold); font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: all 0.18s;
+        }
+        .sb-save-btn:hover { background: rgba(201,168,76,0.3); }
+        .sb-cancel-btn {
+            flex-shrink: 0; padding: 8px 10px; border-radius: 7px;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); font-size: 13px;
+            cursor: pointer; transition: all 0.18s;
+        }
+        .sb-cancel-btn:hover { border-color: var(--danger-light); color: var(--danger-light); }
+        .sb-edit-hint {
+            font-size: 9.5px; color: var(--text-muted); line-height: 1.4;
+        }
+
+        /* No-budget hint */
+        .sb-no-budget {
+            font-size: 10px; color: var(--text-muted);
+            display: flex; align-items: center; gap: 5px; cursor: pointer;
+            padding: 2px 0; transition: color 0.18s;
+        }
+        .sb-no-budget:hover { color: var(--gold); }
+
+        /* Month label badge */
+        .sb-month-badge {
+            display: inline-block;
+            font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+            padding: 2px 7px; border-radius: 10px;
+            background: rgba(201,168,76,0.1); color: var(--gold);
+            border: 1px solid rgba(201,168,76,0.2);
+            margin-bottom: 10px;
+        }
+    </style>
+    {% block extra_style %}{% endblock %}
+</head>
+<body>
+<div class="page-wrap">
+
+    {% if session.get('user_id') %}
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💰</div>
+            <h1>Expense<br>Tracker</h1>
+            <p>Financial Overview</p>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-pill">
+                <div class="user-avatar">{{ session['username'][0] }}</div>
+                <div class="user-info">
+                    <small>Logged in as</small>
+                    <span>{{ session['username'] }}</span>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-label">Main</div>
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <span></span> Manage Dashboard
+            </a>
+
+            <div class="nav-label">Activity</div>
+            <a href="{{ url_for('expenses') }}" class="nav-link {% if request.endpoint == 'expenses' %}active{% endif %}">
+                <span></span> Manage Expenses
+            </a>
+
+            <!-- ── Balance This Month — lives inside Activity, below Manage Expenses ── -->
+            <div class="sb-widget" id="sbWidget"
+                 data-budget="{{ month_budget }}"
+                 data-spent="{{ month_spent }}"
+                 data-balance="{{ month_balance }}">
+
+                <div class="sb-widget-header">
+                    <span class="sb-widget-title"> Balance This Month</span>
+                    <button class="sb-edit-btn" id="sbEditBtn" title="Set budget">Please Input</button>
+                </div>
+
+                <div class="sb-month-badge" id="sbMonthBadge">{{ current_month_label }}</div>
+
+                <!-- Edit form (hidden by default) -->
+                <div class="sb-edit-form" id="sbEditForm">
+                    <div class="sb-input-row">
+                        <input type="text" id="sbBudgetInput" class="sb-input"
+                               placeholder="e.g. 15,000" inputmode="decimal" autocomplete="off">
+                        <button class="sb-save-btn" id="sbSaveBtn" title="Save">✓</button>
+                        <button class="sb-cancel-btn" id="sbCancelBtn" title="Cancel">✕</button>
+                    </div>
+                    <div class="sb-edit-hint">Enter your budget for {{ current_month_label }}</div>
+                </div>
+
+                <!-- Remaining balance -->
+                {% if month_budget > 0 %}
+                    {% set pct_raw = (month_spent / month_budget * 100) if month_budget > 0 else 0 %}
+                    {% set pct = [pct_raw, 100] | min %}
+                    <div class="sb-remaining {% if pct >= 100 %}danger{% elif pct >= 80 %}warn{% else %}ok{% endif %}"
+                         id="sbRemaining">
+                        {% if month_balance < 0 %}-{% endif %}₱{{ month_balance | abs | peso }}
+                    </div>
+
+                    <div class="sb-breakdown">
+                        <div class="sb-breakdown-row">
+                            <span>Budget</span>
+                            <span id="sbBudgetVal">₱{{ month_budget | peso }}</span>
+                        </div>
+                        <div class="sb-breakdown-row spent">
+                            <span>Spent</span>
+                            <span id="sbSpentVal">₱{{ month_spent | peso }}</span>
+                        </div>
+                        <div class="sb-breakdown-row balance {% if pct >= 100 %}danger{% elif pct >= 80 %}warn{% endif %}">
+                            <span>Remaining</span>
+                            <span id="sbBalanceVal">
+                                {% if month_balance < 0 %}-{% endif %}₱{{ month_balance | abs | peso }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="sb-bar-wrap">
+                        <div class="sb-bar-fill {% if pct >= 100 %}danger{% elif pct >= 80 %}warn{% endif %}"
+                             id="sbBarFill" data-pct="{{ pct }}"></div>
+                    </div>
+                {% else %}
+                    <div class="sb-remaining unset" id="sbRemaining">—</div>
+                    <div class="sb-breakdown">
+                        <div class="sb-breakdown-row spent">
+                            <span>Spent this month</span>
+                            <span id="sbSpentVal">₱{{ month_spent | peso }}</span>
+                        </div>
+                    </div>
+                    <div class="sb-bar-wrap">
+                        <div class="sb-bar-fill" id="sbBarFill" style="width:0%"></div>
+                    </div>
+                    <div class="sb-no-budget" id="sbNoBudget">
+                        ✏️ Tap to set your monthly budget
+                    </div>
+                {% endif %}
+            </div>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <!-- Theme Toggle -->
+            <div class="theme-toggle">
+                <span id="themeLabel">🌙 Dark Mode</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="themeToggle">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </label>
+            </div>
+            <a href="{{ url_for('logout') }}" class="nav-link logout">
+                <span>🚪</span> Logout
+            </a>
+        </div>
+    </aside>
+    {% endif %}
+
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">
+                    {% if category == 'success' %}✅{% elif category == 'error' %}❌{% else %}ℹ️{% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<script>
+    /* ── Apply server-rendered bar widths (avoids Jinja-in-CSS linter errors) ── */
+    document.querySelectorAll('[data-pct]').forEach(function (el) {
+        el.style.width = (parseFloat(el.dataset.pct) || 0) + '%';
+    });
+
+    /* ── Theme persistence ── */
+    (function () {
+        var html       = document.documentElement;
+        var toggle     = document.getElementById('themeToggle');
+        var themeLabel = document.getElementById('themeLabel');
+
+        function applyTheme(t) {
+            html.setAttribute('data-theme', t);
+            if (toggle)     toggle.checked   = (t === 'light');
+            if (themeLabel) themeLabel.textContent = t === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+        applyTheme(localStorage.getItem('theme') || 'dark');
+
+        if (toggle) {
+            toggle.addEventListener('change', function () {
+                var t = toggle.checked ? 'light' : 'dark';
+                applyTheme(t);
+                localStorage.setItem('theme', t);
+            });
+        }
+    })();
+
+    /* ── Auto-dismiss flash ── */
+    setTimeout(function () {
+        document.querySelectorAll('.flash').forEach(function (el) {
+            el.style.transition = 'opacity 0.4s';
+            el.style.opacity    = '0';
+            setTimeout(function () { el.remove(); }, 400);
+        });
+    }, 4000);
+
+    /* ══════════════════════════════════════════════════
+       BALANCE THIS MONTH — WIDGET JS
+       Server renders the initial state.
+       JS only handles: budget editing via fetch API,
+       and the live-preview while typing on Expenses page.
+       ══════════════════════════════════════════════════ */
+    (function () {
+        var widget    = document.getElementById('sbWidget');
+        if (!widget) return;
+
+        var editBtn   = document.getElementById('sbEditBtn');
+        var editForm  = document.getElementById('sbEditForm');
+        var budgetInp = document.getElementById('sbBudgetInput');
+        var saveBtn   = document.getElementById('sbSaveBtn');
+        var cancelBtn = document.getElementById('sbCancelBtn');
+        var remaining = document.getElementById('sbRemaining');
+        var barFill   = document.getElementById('sbBarFill');
+        var noBudget  = document.getElementById('sbNoBudget');
+        var budgetVal = document.getElementById('sbBudgetVal');
+        var spentVal  = document.getElementById('sbSpentVal');
+        var balanceVal= document.getElementById('sbBalanceVal');
+
+        /* ── Server-rendered base values ── */
+        var serverBudget  = parseFloat(widget.dataset.budget)  || 0;
+        var serverSpent   = parseFloat(widget.dataset.spent)   || 0;
+        var serverBalance = parseFloat(widget.dataset.balance) || 0;
+
+        /* Live preview delta (set by Expenses page while user types) */
+        var previewDelta = 0;
+
+        /* ── Formatting ── */
+        function peso(v) {
+            return '₱' + Math.abs(v).toLocaleString('en-PH',
+                { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        function fmtPct(budget, spent) {
+            return budget > 0 ? Math.min(100, Math.max(0, (spent / budget) * 100)) : 0;
+        }
+        function colorClass(pct) {
+            return pct >= 100 ? 'danger' : pct >= 80 ? 'warn' : 'ok';
+        }
+
+        /* ── Input sanitize/format (no snapping to ceiling) ── */
+        function sanitize(s) {
+            s = s.replace(/[^0-9.]/g, '');
+            var parts = s.split('.');
+            if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
+            parts = s.split('.');
+            var intPart = (parts[0] || '').slice(0, 12);
+            var decPart = parts[1] !== undefined ? parts[1].slice(0, 2) : undefined;
+            return decPart !== undefined ? intPart + '.' + decPart : intPart;
+        }
+        function addCommas(s) {
+            var parts   = s.split('.');
+            var intPart = (parts[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.length > 1 ? intPart + '.' + parts[1] : intPart;
+        }
+
+        /* ── Render widget with current values + optional preview delta ── */
+        function renderWidget(budget, spent, delta) {
+            budget = budget !== undefined ? budget : serverBudget;
+            spent  = spent  !== undefined ? spent  : serverSpent;
+            delta  = delta  !== undefined ? delta  : previewDelta;
+
+            var total   = spent + delta;
+            var balance = budget - total;
+            var pct     = fmtPct(budget, total);
+            var cls     = colorClass(pct);
+
+            if (remaining) {
+                if (budget === 0) {
+                    remaining.className   = 'sb-remaining unset';
+                    remaining.textContent = '—';
+                } else {
+                    remaining.className   = 'sb-remaining ' + cls + (delta > 0 ? ' preview' : '');
+                    remaining.textContent = (balance < 0 ? '-' : '') + peso(balance);
+                }
+            }
+            if (barFill) {
+                barFill.style.width = pct + '%';
+                barFill.className   = 'sb-bar-fill' + (pct >= 100 ? ' danger' : pct >= 80 ? ' warn' : '');
+            }
+            if (budgetVal) budgetVal.textContent  = peso(budget);
+            if (spentVal)  spentVal.textContent   = peso(total);
+            if (balanceVal) {
+                balanceVal.textContent = (balance < 0 ? '-' : '') + peso(balance);
+                balanceVal.parentElement.className =
+                    'sb-breakdown-row balance' + (pct >= 100 ? ' danger' : pct >= 80 ? ' warn' : '');
+            }
+            if (noBudget) noBudget.style.display = budget === 0 ? 'flex' : 'none';
+        }
+
+        /* ── Edit form open/close ── */
+        function openEdit() {
+            budgetInp.value = serverBudget > 0
+                ? addCommas(serverBudget.toFixed(2)) : '';
+            editForm.classList.add('open');
+            budgetInp.focus();
+            budgetInp.select();
+        }
+        function closeEdit() { editForm.classList.remove('open'); }
+
+        if (editBtn)   editBtn.addEventListener('click',   function () {
+            editForm.classList.contains('open') ? closeEdit() : openEdit();
+        });
+        if (noBudget)  noBudget.addEventListener('click',  openEdit);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeEdit);
+
+        /* ── Live format while typing ── */
+        if (budgetInp) {
+            budgetInp.addEventListener('input', function () {
+                var pos    = budgetInp.selectionStart;
+                var oldLen = budgetInp.value.length;
+                var raw    = sanitize(budgetInp.value);
+                var disp   = addCommas(raw);
+                budgetInp.value = disp;
+                var diff = disp.length - oldLen;
+                try { budgetInp.setSelectionRange(pos + diff, pos + diff); } catch (e) {}
+            });
+            budgetInp.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter')  { saveBudget(); return; }
+                if (e.key === 'Escape') { closeEdit();  return; }
+                var ok = ['Backspace','Delete','ArrowLeft','ArrowRight',
+                          'ArrowUp','ArrowDown','Tab','Home','End'];
+                if (!ok.includes(e.key) && !e.ctrlKey && !e.metaKey
+                    && !/[\d.]/.test(e.key)) e.preventDefault();
+            });
+        }
+
+        /* ── Save via fetch → /api/budget ── */
+        function saveBudget() {
+            var raw = (budgetInp.value || '').replace(/,/g, '');
+            var val = parseFloat(raw) || 0;
+
+            fetch('/api/budget', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ budget: val })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    serverBudget  = data.budget;
+                    serverSpent   = data.spent;
+                    serverBalance = data.balance;
+                    /* Update data attributes so live preview re-bases correctly */
+                    widget.dataset.budget  = serverBudget;
+                    widget.dataset.spent   = serverSpent;
+                    widget.dataset.balance = serverBalance;
+                    renderWidget(serverBudget, serverSpent, previewDelta);
+                    closeEdit();
+                } else {
+                    alert('Could not save budget: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(function () {
+                alert('Network error — budget not saved.');
+            });
+        }
+        if (saveBtn) saveBtn.addEventListener('click', saveBudget);
+
+        /* ── Live preview integration (dispatched by Expenses page) ── */
+        window.addEventListener('sb:preview', function (e) {
+            previewDelta = (e.detail && e.detail.delta) || 0;
+            renderWidget();
+        });
+
+        /* ── Expose for external calls ── */
+        window.__sbRender = renderWidget;
+
+        /* ── Initial render (values already set by Jinja) ── */
+        renderWidget();
+    })();
+</script>
+{% block extra_script %}{% endblock %}
+</body>
+</html>

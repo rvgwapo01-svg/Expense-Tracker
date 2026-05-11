@@ -1,0 +1,805 @@
+{% extends "base.html" %}
+{% block title %}Manage Dashboard — Expense Tracker{% endblock %}
+
+{% block extra_style %}
+<style>
+    /* ── Section Titles ── */
+    .section-title {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 20px; font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 18px;
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Insight Banner ── */
+    .insight-banner {
+        display: flex; align-items: flex-start; gap: 16px;
+        padding: 18px 22px;
+        background: rgba(201,168,76,0.06);
+        border: 1px solid rgba(201,168,76,0.25);
+        border-left: 4px solid var(--gold);
+        border-radius: 10px;
+        margin-bottom: 28px;
+    }
+    .insight-icon  { font-size: 26px; flex-shrink: 0; margin-top: 2px; }
+    .insight-title { font-family: 'Cormorant Garant', serif; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 4px; }
+    .insight-text  { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; }
+    .insight-text strong { color: var(--text-primary); }
+
+    /* ══════════════════════════════════════════
+       PRIMARY FINANCIAL CARDS  (2 × 2 grid)
+       ══════════════════════════════════════════ */
+    .stats-primary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    @media (max-width: 580px) { .stats-primary { grid-template-columns: 1fr; } }
+
+    .fin-card {
+        border-radius: 14px;
+        padding: 22px 24px 20px;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        display: flex; flex-direction: column; gap: 10px;
+        min-width: 0;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .fin-card:hover { border-color: var(--border-hover); box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
+
+    .fin-card-top {
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .fin-label {
+        font-size: 10.5px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.12em;
+        color: var(--text-muted);
+    }
+    .fin-icon { font-size: 22px; opacity: 0.75; flex-shrink: 0; }
+
+    /* The money amount — scales with viewport, never clips */
+    .fin-value {
+        font-family: 'Cormorant Garant', serif;
+        font-size: clamp(22px, 2.8vw, 36px);
+        font-weight: 700;
+        color: var(--gold);
+        line-height: 1.1;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .fin-card-footer {
+        font-size: 11.5px; color: var(--text-muted);
+        display: flex; align-items: center; gap: 6px;
+    }
+    .fin-card-footer .dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--gold); flex-shrink: 0; opacity: 0.5;
+    }
+
+    /* ── Total Money ── */
+    .fin-card.card-money { border-left: 3px solid #4fa3d1; }
+    .fin-card.card-money .fin-value { color: #4fa3d1; }
+    .fin-card.card-money .fin-card-footer .dot { background: #4fa3d1; }
+
+    /* ── Total Expenses ── */
+    .fin-card.card-expense { border-left: 3px solid var(--gold); }
+
+    /* ── This Month ── */
+    .fin-card.card-month { border-left: 3px solid #9b59b6; }
+    .fin-card.card-month .fin-value { color: #b07fd4; }
+    .fin-card.card-month .fin-card-footer .dot { background: #9b59b6; }
+
+    /* ── Net Balance — full-width hero ── */
+    .fin-card.card-net { padding: 26px 28px; }
+    .fin-card.card-net.positive {
+        border-color: rgba(46,204,113,0.4);
+        background: rgba(46,204,113,0.04);
+        border-left: 4px solid #2ecc71;
+    }
+    .fin-card.card-net.negative {
+        border-color: rgba(231,76,60,0.4);
+        background: rgba(231,76,60,0.04);
+        border-left: 4px solid var(--danger-light);
+    }
+    .fin-card.card-net.positive .fin-value { color: #2ecc71; }
+    .fin-card.card-net.negative .fin-value { color: var(--danger-light); }
+    .fin-card.card-net.positive .fin-card-footer .dot { background: #2ecc71; }
+    .fin-card.card-net.negative .fin-card-footer .dot { background: var(--danger-light); }
+
+    .net-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 10px; border-radius: 20px;
+        font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+    }
+    .net-badge.positive { background: rgba(46,204,113,0.15); color: #2ecc71; }
+    .net-badge.negative { background: rgba(231,76,60,0.15);  color: var(--danger-light); }
+
+    .net-value-row {
+        display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    }
+
+    /* ══════════════════════════════════════════
+       SECONDARY COUNT CARDS  (Transactions + Categories)
+       ══════════════════════════════════════════ */
+    .stats-secondary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 28px;
+    }
+
+    .count-card {
+        border-radius: 10px;
+        padding: 14px 18px;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        display: flex; align-items: center; gap: 14px;
+        min-width: 0; transition: border-color 0.2s;
+    }
+    .count-card:hover { border-color: var(--border-hover); }
+    .count-icon  { font-size: 24px; flex-shrink: 0; }
+    .count-body  { min-width: 0; }
+    .count-value {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 28px; font-weight: 700;
+        color: var(--text-primary); line-height: 1;
+    }
+    .count-label {
+        font-size: 11px; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 0.1em;
+        margin-top: 3px;
+    }
+
+    /* ── Quick Actions ── */
+    .quick-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+
+    /* ── Full-width Recent Expenses ── */
+    .no-data { color: var(--text-muted); font-size: 14px; text-align: center; padding: 32px 0; }
+
+    /* ══════════════════════════════════════════
+       BALANCE THIS MONTH — DASHBOARD HERO CARD
+       ══════════════════════════════════════════ */
+    .balance-hero {
+        border-radius: 14px; padding: 24px 28px;
+        border: 1px solid var(--border); background: var(--bg-card);
+        margin-bottom: 20px; min-width: 0;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .balance-hero:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
+    .balance-hero.bh-ok     { border-left: 4px solid #2ecc71; border-color: rgba(46,204,113,0.35); background: rgba(46,204,113,0.03); }
+    .balance-hero.bh-warn   { border-left: 4px solid #f39c12; border-color: rgba(243,156,18,0.35);  background: rgba(243,156,18,0.03); }
+    .balance-hero.bh-danger { border-left: 4px solid var(--danger-light); border-color: rgba(231,76,60,0.35); background: rgba(231,76,60,0.03); }
+    .balance-hero.bh-unset  { border-left: 4px solid var(--border-hover); }
+
+    .bh-top {
+        display: flex; align-items: flex-start;
+        justify-content: space-between; gap: 16px;
+        flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .bh-left { flex: 1; min-width: 0; }
+    .bh-label {
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 6px;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .bh-month-pill {
+        display: inline-block; font-size: 9.5px; font-weight: 600;
+        padding: 2px 8px; border-radius: 20px;
+        background: rgba(201,168,76,0.12); color: var(--gold);
+        border: 1px solid rgba(201,168,76,0.25); letter-spacing: 0.06em;
+    }
+    .bh-amount {
+        font-family: 'Cormorant Garant', serif;
+        font-size: clamp(28px, 4vw, 44px); font-weight: 700;
+        line-height: 1; word-break: break-word; overflow-wrap: anywhere;
+    }
+    .bh-amount.ok     { color: #2ecc71; }
+    .bh-amount.warn   { color: #f39c12; }
+    .bh-amount.danger { color: var(--danger-light); }
+    .bh-amount.unset  { color: var(--text-muted); font-size: 22px;
+                        font-family: 'Outfit', sans-serif; font-weight: 400; }
+
+    .bh-right {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 12px 24px; flex-shrink: 0;
+    }
+    @media (max-width: 640px) { .bh-right { grid-template-columns: 1fr 1fr; width: 100%; } }
+
+    .bh-stat { display: flex; flex-direction: column; gap: 2px; }
+    .bh-stat-label {
+        font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--text-muted); font-weight: 600;
+    }
+    .bh-stat-val {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 20px; font-weight: 700; color: var(--text-primary);
+        word-break: break-word;
+    }
+    .bh-stat-val.spent  { color: var(--danger-light); }
+    .bh-stat-val.budget { color: var(--gold); }
+
+    .bh-bar-wrap {
+        height: 7px; background: var(--bg-deep);
+        border-radius: 4px; overflow: hidden; margin-bottom: 10px;
+    }
+    .bh-bar-fill {
+        height: 100%; border-radius: 4px; background: #2ecc71;
+        transition: width 0.8s cubic-bezier(0.4,0,0.2,1), background 0.3s;
+    }
+    .bh-bar-fill.warn   { background: #f39c12; }
+    .bh-bar-fill.danger { background: var(--danger-light); }
+
+    .bh-footer {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 8px;
+        font-size: 11.5px; color: var(--text-muted);
+    }
+    .bh-set-link {
+        font-size: 12px; color: var(--gold); text-decoration: none;
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 12px; border-radius: 7px;
+        border: 1px solid rgba(201,168,76,0.3); background: rgba(201,168,76,0.07);
+        transition: all 0.18s; cursor: pointer;
+    }
+    .bh-set-link:hover { background: rgba(201,168,76,0.18); border-color: var(--gold); }
+
+    /* ── Graph / Chart Section ── */
+    .graphs-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 28px;
+    }
+    @media (max-width: 900px) { .graphs-grid { grid-template-columns: 1fr; } }
+
+    .chart-wrap      { position: relative; width: 100%; height: 280px; }
+    .chart-wrap-tall { position: relative; width: 100%; height: 320px; }
+
+    .section-sub {
+        font-size: 11px; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 0.08em;
+        margin-bottom: 20px; margin-top: -10px;
+    }
+    .custom-legend {
+        display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+    .legend-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Monthly Summary ── */
+    .monthly-grid { display: flex; flex-direction: column; gap: 10px; }
+    .month-row {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 16px;
+        background: var(--bg-elevated); border: 1px solid var(--border);
+        border-radius: 8px; transition: border-color 0.2s;
+        flex-wrap: wrap;
+    }
+    .month-row:hover { border-color: var(--border-hover); }
+    .month-label {
+        width: 86px; font-size: 13px; font-weight: 500;
+        color: var(--text-primary); flex-shrink: 0;
+    }
+    .month-bar-wrap {
+        flex: 1; min-width: 60px;
+        height: 6px; background: var(--bg-deep);
+        border-radius: 3px; overflow: hidden;
+    }
+    .month-bar-fill {
+        height: 100%; width: 0%; border-radius: 3px;
+        background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+        transition: width 1s ease;
+    }
+    /* Amount + money sit in their own auto-width cells — NO truncation */
+    .month-amount {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 15px; font-weight: 700;
+        color: var(--gold);
+        flex-shrink: 0; white-space: nowrap;
+        min-width: max-content;
+    }
+    .month-money {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 13px; color: var(--text-secondary);
+        flex-shrink: 0; white-space: nowrap;
+        min-width: max-content;
+    }
+    .month-count {
+        font-size: 11px; color: var(--text-muted);
+        flex-shrink: 0; white-space: nowrap;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">Home</div>
+    <h2>Manage Dashboard</h2>
+    <p>Welcome back, <strong>{{ session['username'] }}</strong> — your full financial overview.</p>
+</div>
+
+<!-- ── Insight Banner ── -->
+<div class="insight-banner">
+    <div class="insight-icon"></div>
+    <div>
+        <div class="insight-title">Financial Tip for Today</div>
+        <div class="insight-text">
+            <strong>Be careful with your daily expenses.</strong>
+            Small purchases add up fast — track every peso and review spending weekly.
+            Keep your <strong>Food &amp; Transport</strong> categories under 50% of your monthly total.
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PRIMARY FINANCIAL CARDS  (2 × 2)
+     ══════════════════════════════════════════ -->
+<div class="stats-primary">
+
+    <!-- Total Money -->
+    <div class="fin-card card-money">
+        <div class="fin-card-top">
+            <span class="fin-label">Total Money</span>
+            <span class="fin-icon"></span>
+        </div>
+        <div class="fin-value">₱{{ latest_total_money|peso }}</div>
+        <div class="fin-card-footer">
+            <span class="dot"></span>
+            Current available balance
+        </div>
+    </div>
+
+    <!-- Total Expenses -->
+    <div class="fin-card card-expense">
+        <div class="fin-card-top">
+            <span class="fin-label">Total Expenses</span>
+            <span class="fin-icon"></span>
+        </div>
+        <div class="fin-value">₱{{ total|peso }}</div>
+        <div class="fin-card-footer">
+            <span class="dot"></span>
+            All-time recorded spending
+        </div>
+    </div>
+
+    <!-- This Month -->
+    <div class="fin-card card-month">
+        <div class="fin-card-top">
+            <span class="fin-label">This Month</span>
+            <span class="fin-icon"></span>
+        </div>
+        <div class="fin-value">₱{{ month_total|peso }}</div>
+        <div class="fin-card-footer">
+            <span class="dot"></span>
+            Spent in the current month
+        </div>
+    </div>
+
+    <!-- Net Balance — accented hero -->
+    <div class="fin-card card-net {% if net_balance >= 0 %}positive{% else %}negative{% endif %}">
+        <div class="fin-card-top">
+            <span class="fin-label">Net Balance</span>
+            <span class="fin-icon">{% if net_balance >= 0 %}📈{% else %}📉{% endif %}</span>
+        </div>
+        <div class="net-value-row">
+            <div class="fin-value">₱{{ net_balance|peso }}</div>
+            <span class="net-badge {% if net_balance >= 0 %}positive{% else %}negative{% endif %}">
+                {% if net_balance >= 0 %}▲ Surplus{% else %}▼ Deficit{% endif %}
+            </span>
+        </div>
+        <div class="fin-card-footer">
+            <span class="dot"></span>
+            Total Money minus Total Expenses
+        </div>
+    </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECONDARY COUNT CARDS  (Transactions + Categories)
+     ══════════════════════════════════════════ -->
+<div class="stats-secondary">
+
+    <div class="count-card">
+        <span class="count-icon"></span>
+        <div class="count-body">
+            <div class="count-value">{{ count|commaint }}</div>
+            <div class="count-label">Transactions</div>
+        </div>
+    </div>
+
+    <div class="count-card">
+        <span class="count-icon"></span>
+        <div class="count-body">
+            <div class="count-value">{{ cat_chart|length }}</div>
+            <div class="count-label">Categories Used</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     BALANCE THIS MONTH — Full-width hero
+     ══════════════════════════════════════════ -->
+{% set bh_pct = [(month_spent / month_budget * 100), 100] | min if month_budget > 0 else 0 %}
+{% set bh_cls = 'bh-danger' if bh_pct >= 100 else ('bh-warn' if bh_pct >= 80 else ('bh-ok' if month_budget > 0 else 'bh-unset')) %}
+{% set amt_cls = 'danger' if bh_pct >= 100 else ('warn' if bh_pct >= 80 else ('ok' if month_budget > 0 else 'unset')) %}
+
+<div class="balance-hero {{ bh_cls }}">
+    <div class="bh-top">
+        <div class="bh-left">
+            <div class="bh-label">
+                 Balance This Month
+                <span class="bh-month-pill">{{ current_month_label }}</span>
+            </div>
+            <div class="bh-amount {{ amt_cls }}">
+                {% if month_budget > 0 %}
+                    {% if month_balance < 0 %}-{% endif %}₱{{ month_balance | abs | peso }}
+                {% else %}
+                    No budget set
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bh-right">
+            <div class="bh-stat">
+                <span class="bh-stat-label">Budget</span>
+                <span class="bh-stat-val budget">
+                    {% if month_budget > 0 %}₱{{ month_budget | peso }}{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="bh-stat">
+                <span class="bh-stat-label">Spent</span>
+                <span class="bh-stat-val spent">₱{{ month_spent | peso }}</span>
+            </div>
+            <div class="bh-stat">
+                <span class="bh-stat-label">Remaining</span>
+                <span class="bh-stat-val {{ amt_cls }}">
+                    {% if month_budget > 0 %}
+                        {% if month_balance < 0 %}-{% endif %}₱{{ month_balance | abs | peso }}
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="bh-stat">
+                <span class="bh-stat-label">Used</span>
+                <span class="bh-stat-val {{ amt_cls }}">
+                    {% if month_budget > 0 %}{{ bh_pct | round(1) }}%{% else %}—{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="bh-bar-wrap">
+        <div class="bh-bar-fill {% if bh_pct >= 100 %}danger{% elif bh_pct >= 80 %}warn{% endif %}"
+             data-pct="{{ bh_pct }}"></div>
+    </div>
+
+    <div class="bh-footer">
+        <span>
+            {% if month_budget > 0 %}
+                ₱{{ month_spent | peso }} of ₱{{ month_budget | peso }} spent
+                ({{ (100 - bh_pct) | round(1) }}% remaining)
+            {% else %}
+                Set a monthly budget to track your remaining balance.
+            {% endif %}
+        </span>
+        <span class="bh-set-link" onclick="document.getElementById('sbEditBtn').click();
+               document.getElementById('sbWidget').scrollIntoView({behavior:'smooth'});">
+            ✏️ {% if month_budget > 0 %}Edit Budget{% else %}Set Budget{% endif %}
+        </span>
+    </div>
+</div>
+
+<!-- ── Quick Actions ── -->
+<div class="quick-actions">
+    <a href="{{ url_for('expenses') }}"    class="btn btn-gold"> Add Expense</a>
+    <a href="{{ url_for('expenses') }}"    class="btn btn-outline"> All Expenses</a>
+</div>
+
+<!-- ── Recent Expenses (full-width) ── -->
+<div class="card" style="margin-bottom: 28px;">
+    <div class="section-title"> Recent Expenses</div>
+    {% if recent %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Date</th>
+                    <th>Total Money</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in recent %}
+                <tr>
+                    <td style="color:var(--text-muted);font-size:12px;">{{ loop.index }}</td>
+                    <td style="color:var(--text-primary);font-weight:500;">{{ e['description'] }}</td>
+                    <td><span class="badge badge-{{ e['category']|lower }}">{{ e['category'] }}</span></td>
+                    <td style="font-size:13px;">{{ e['date'] }}</td>
+                    <td style="font-family:'Cormorant Garant',serif;color:var(--text-secondary);">
+                        ₱{{ e['total_money']|peso }}
+                    </td>
+                    <td class="amount-cell">₱{{ e['amount']|peso }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;">
+        <a href="{{ url_for('expenses') }}" style="color:var(--gold);font-size:13px;text-decoration:none;">
+            View all expenses →
+        </a>
+    </div>
+    {% else %}
+    <div class="no-data">
+        <div style="font-size:36px;margin-bottom:10px;opacity:0.3;">🧾</div>
+        No expenses yet. <a href="{{ url_for('expenses') }}" style="color:var(--gold);">Add your first one.</a>
+    </div>
+    {% endif %}
+</div>
+
+
+<!-- ── Monthly Summary rows ── -->
+{% if monthly_summary %}
+<div class="card" style="margin-bottom: 28px;">
+    <div class="section-title"> Monthly Summary</div>
+    <div class="monthly-grid">
+        {% set max_month = monthly_summary | map(attribute='total') | max %}
+        {% for m in monthly_summary %}
+        <div class="month-row">
+            <div class="month-label">{{ m['month_label'] }}</div>
+            <div class="month-bar-wrap">
+                <div class="month-bar-fill"
+                     data-pct="{{ ((m['total'] / max_month) * 100)|round(1) if max_month > 0 else 0 }}">
+                </div>
+            </div>
+            <div class="month-amount">₱{{ m['total']|peso }}</div>
+            <div class="month-money" title="Total Money recorded">/ ₱{{ m['total_money']|peso }}</div>
+            <div class="month-count">{{ m['count'] }} item{{ 's' if m['count'] != 1 }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Charts: Category Bar + Category Donut ── -->
+{% if cat_chart %}
+<div class="graphs-grid">
+    <div class="card">
+        <div class="section-title"> Expenses by Category</div>
+        <div class="section-sub">Total spent per category</div>
+        <div class="chart-wrap">
+            <canvas id="catBarChart"></canvas>
+        </div>
+        <div class="custom-legend" id="barLegend"></div>
+    </div>
+
+    <div class="card">
+        <div class="section-title"> Spending Distribution</div>
+        <div class="section-sub">Percentage share of total expenses</div>
+        <div class="chart-wrap" style="height:250px;">
+            <canvas id="catPieChart"></canvas>
+        </div>
+        <div class="custom-legend" id="pieLegend"></div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Monthly Trend Chart (full-width) ── -->
+{% if monthly_summary %}
+<div class="card" style="margin-bottom: 28px;">
+    <div class="section-title"> Monthly Expenses vs Total Money</div>
+    <div class="section-sub">Side-by-side comparison per month</div>
+    <div class="chart-wrap-tall">
+        <canvas id="monthlyChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_script %}
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<!-- Pass Jinja data safely via data attributes to avoid quote collisions -->
+<div id="__chartData"
+     data-cat='{{ cat_chart | tojson }}'
+     data-monthly='{{ monthly_summary | tojson }}'
+     style="display:none;"></div>
+
+<script>
+(function () {
+    // ── Apply server-rendered bar widths (avoids Jinja-in-CSS linter errors) ──
+    document.querySelectorAll('[data-pct]').forEach(function (el) {
+        el.style.width = (parseFloat(el.dataset.pct) || 0) + '%';
+    });
+
+    // ── Animate monthly summary bars ──
+    document.querySelectorAll('.month-bar-fill').forEach(el => {
+        el.style.width = el.getAttribute('data-pct') + '%';
+    });
+
+    // ── Pull Jinja data ──
+    const _d          = document.getElementById('__chartData');
+    const catData     = JSON.parse(_d.dataset.cat     || '[]');
+    const monthlyData = JSON.parse(_d.dataset.monthly || '[]');
+
+    const PALETTE = [
+        '#c9a84c','#e8c97a','#8a6e2f',
+        '#4fa3d1','#2ecc71','#9b59b6',
+        '#e74c3c','#f39c12','#1abc9c',
+        '#e67e22','#3498db','#95a5a6'
+    ];
+
+    function cssVar(n) {
+        return getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    }
+    function tooltipDefaults() {
+        return {
+            backgroundColor: cssVar('--bg-card'),
+            titleColor:      cssVar('--text-primary'),
+            bodyColor:       cssVar('--text-secondary'),
+            borderColor:     cssVar('--border-hover'),
+            borderWidth: 1, padding: 12, cornerRadius: 8,
+        };
+    }
+    function buildLegend(id, labels, colors) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = labels.map((l, i) =>
+            `<div class="legend-item">
+                <div class="legend-dot" style="background:${colors[i % colors.length]}"></div>
+                <span>${l}</span>
+            </div>`
+        ).join('');
+    }
+
+    // ── 1. Category Bar Chart ──
+    if (catData.length) {
+        const labels  = catData.map(d => d.category);
+        const amounts = catData.map(d => d.total);
+        const moneys  = catData.map(d => d.total_money);
+        const colors  = catData.map((_, i) => PALETTE[i % PALETTE.length]);
+
+        new Chart(document.getElementById('catBarChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Expenses',
+                        data: amounts,
+                        backgroundColor: colors.map(c => c + 'bb'),
+                        borderColor: colors,
+                        borderWidth: 1.5, borderRadius: 5, borderSkipped: false,
+                    },
+                    {
+                        label: 'Total Money',
+                        data: moneys,
+                        backgroundColor: 'rgba(78,163,209,0.25)',
+                        borderColor: '#4fa3d1',
+                        borderWidth: 1.5, borderRadius: 5, borderSkipped: false,
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        ...tooltipDefaults(),
+                        callbacks: { label: ctx => ` ${ctx.dataset.label}: ₱${ctx.parsed.y.toLocaleString('en-PH',{minimumFractionDigits:2})}` }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: cssVar('--text-muted'), font:{size:12,family:'Outfit'} }, grid:{color:'rgba(255,255,255,0.04)'} },
+                    y: { ticks: { color: cssVar('--text-muted'), font:{size:11,family:'Outfit'}, callback: v=>'₱'+v.toLocaleString('en-PH') }, grid:{color:'rgba(255,255,255,0.04)'} }
+                }
+            }
+        });
+        buildLegend('barLegend', ['Expenses', 'Total Money'], [PALETTE[0], '#4fa3d1']);
+    }
+
+    // ── 2. Category Donut Chart ──
+    if (catData.length) {
+        const labels  = catData.map(d => d.category);
+        const amounts = catData.map(d => d.total);
+        const colors  = catData.map((_, i) => PALETTE[i % PALETTE.length]);
+
+        new Chart(document.getElementById('catPieChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data: amounts,
+                    backgroundColor: colors.map(c => c + 'bb'),
+                    borderColor: colors, borderWidth: 2, hoverOffset: 10,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '60%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        ...tooltipDefaults(),
+                        callbacks: {
+                            label: ctx => {
+                                const sum = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+                                const pct = ((ctx.parsed/sum)*100).toFixed(1);
+                                return ` ₱${ctx.parsed.toLocaleString('en-PH',{minimumFractionDigits:2})} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        buildLegend('pieLegend', catData.map(d=>d.category), catData.map((_,i)=>PALETTE[i%PALETTE.length]));
+    }
+
+    // ── 3. Monthly Expenses vs Total Money ──
+    if (monthlyData.length) {
+        const mLabels  = monthlyData.map(d => d.month_label);
+        const mExpense = monthlyData.map(d => d.total);
+        const mMoney   = monthlyData.map(d => d.total_money);
+
+        new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: mLabels,
+                datasets: [
+                    {
+                        type: 'line', label: 'Total Money',
+                        data: mMoney,
+                        borderColor: '#4fa3d1', backgroundColor: 'rgba(79,163,209,0.08)',
+                        borderWidth: 2.5, pointBackgroundColor: '#4fa3d1',
+                        pointRadius: 5, pointHoverRadius: 7,
+                        tension: 0.4, fill: true, order: 1,
+                    },
+                    {
+                        type: 'line', label: 'Expenses Trend',
+                        data: mExpense,
+                        borderColor: '#e8c97a', backgroundColor: 'rgba(232,201,122,0.06)',
+                        borderWidth: 2, pointBackgroundColor: '#c9a84c',
+                        pointRadius: 4, pointHoverRadius: 6,
+                        tension: 0.4, fill: false, order: 2,
+                    },
+                    {
+                        type: 'bar', label: 'Monthly Expenses',
+                        data: mExpense,
+                        backgroundColor: 'rgba(201,168,76,0.3)',
+                        borderColor: 'rgba(201,168,76,0.7)',
+                        borderWidth: 1.5, borderRadius: 5, order: 3,
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: cssVar('--text-secondary'), font:{size:12,family:'Outfit'}, boxWidth:12, padding:16 }
+                    },
+                    tooltip: {
+                        ...tooltipDefaults(),
+                        callbacks: { label: ctx => ` ${ctx.dataset.label}: ₱${ctx.parsed.y.toLocaleString('en-PH',{minimumFractionDigits:2})}` }
+                    }
+                },
+                scales: {
+                    x: { ticks:{color:cssVar('--text-muted'),font:{size:12,family:'Outfit'}}, grid:{color:'rgba(255,255,255,0.04)'} },
+                    y: { ticks:{color:cssVar('--text-muted'),font:{size:11,family:'Outfit'},callback:v=>'₱'+v.toLocaleString('en-PH')}, grid:{color:'rgba(255,255,255,0.04)'} }
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+{% block title %}Expenses — Expense Tracker{% endblock %}
+
+{% block extra_style %}
+<style>
+    .expenses-layout {
+        display: grid;
+        grid-template-columns: 400px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    @media (max-width: 960px) { .expenses-layout { grid-template-columns: 1fr; } }
+
+    /* ── Add Form Panel ── */
+    .add-panel { position: sticky; top: 24px; }
+
+    .panel-title {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 20px; font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 20px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Amount preview ── */
+    .preview-wrap {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+    }
+    .preview-item small {
+        display: block;
+        font-size: 10px; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 0.1em;
+        margin-bottom: 4px;
+    }
+    .preview-item { overflow: hidden; min-width: 0; }
+    .amount-preview {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 30px; font-weight: 700;
+        color: var(--gold);
+        transition: all 0.2s;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .amount-preview.empty { color: var(--text-muted); font-size: 16px; font-family: 'Outfit', sans-serif; font-weight: 400; }
+
+    /* ── Field hint ── */
+    .field-hint {
+        font-size: 11px; color: var(--text-muted);
+        margin-top: 4px; line-height: 1.4;
+    }
+
+    /* ── Numeric formatted inputs ── */
+    .numeric-input {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 15px; font-weight: 600;
+        letter-spacing: 0.02em;
+        width: 100%; box-sizing: border-box; min-width: 0;
+    }
+    .numeric-input::placeholder { font-family: 'Outfit', sans-serif; font-weight: 400; font-size: 14px; letter-spacing: normal; }
+    .numeric-input.over-limit { border-color: var(--danger-light) !important; box-shadow: 0 0 0 2px rgba(231,76,60,0.15); }
+    .input-meta {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-top: 4px;
+    }
+    .char-counter { font-size: 11px; color: var(--text-muted); }
+    .char-counter.warn { color: var(--danger-light); }
+
+    /* ── Category grid ── */
+    .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+    .cat-opt  { display: none; }
+    .cat-lbl  {
+        display: flex; flex-direction: column; align-items: center;
+        gap: 4px; padding: 10px 6px;
+        border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+        transition: all 0.2s; font-size: 12px; color: var(--text-secondary); text-align: center;
+    }
+    .cat-lbl .cat-em { font-size: 18px; }
+    .cat-lbl:hover { border-color: var(--border-hover); color: var(--text-primary); background: var(--bg-hover); }
+    .cat-opt:checked + .cat-lbl { border-color: var(--gold); background: rgba(201,168,76,0.08); color: var(--gold); }
+
+    .btn-gold { width: 100%; justify-content: center; padding: 12px; margin-top: 4px; }
+
+    /* ── List panel ── */
+    .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+    .list-header .panel-title { margin-bottom: 0; padding-bottom: 0; border: none; }
+
+    .filter-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .filter-row select.form-control { width: auto; min-width: 140px; padding: 9px 12px; font-size: 13px; }
+
+    .btn-sm-outline {
+        padding: 9px 14px; font-size: 13px; background: transparent;
+        border: 1px solid var(--border-hover); color: var(--text-primary);
+        border-radius: 8px; cursor: pointer; transition: all 0.2s;
+        text-decoration: none; display: inline-flex; align-items: center;
+    }
+    .btn-sm-outline:hover { background: var(--bg-hover); border-color: var(--gold); color: var(--gold); }
+
+    /* ── Refresh button ── */
+    .btn-refresh {
+        padding: 9px 14px; font-size: 13px; font-family: 'Outfit', sans-serif;
+        background: rgba(201,168,76,0.08);
+        border: 1px solid rgba(201,168,76,0.35);
+        color: var(--gold); border-radius: 8px; cursor: pointer;
+        transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+        white-space: nowrap; font-weight: 500; flex-shrink: 0;
+    }
+    .btn-refresh:hover {
+        background: rgba(201,168,76,0.18);
+        border-color: var(--gold);
+        box-shadow: 0 0 0 2px rgba(201,168,76,0.12);
+    }
+    .btn-refresh:active { transform: scale(0.96); }
+    .btn-refresh.refreshing {
+        opacity: 0.7; cursor: not-allowed; pointer-events: none;
+    }
+    .btn-refresh .refresh-icon {
+        display: inline-block; line-height: 1;
+        transition: transform 0.1s;
+    }
+    .btn-refresh.refreshing .refresh-icon {
+        animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(360deg); }
+    }
+
+    .total-strip {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 16px;
+        background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.15);
+        border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);
+    }
+    .total-strip strong { font-family: 'Cormorant Garant', serif; font-size: clamp(13px,1.4vw,20px); color: var(--gold); white-space: nowrap; }
+
+    .action-del {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 12px; border-radius: 6px;
+        background: rgba(192,57,43,0.08); border: 1px solid rgba(231,76,60,0.2);
+        color: var(--danger-light); font-size: 12px;
+        font-family: 'Outfit', sans-serif; cursor: pointer; transition: all 0.2s;
+    }
+    .action-del:hover { background: rgba(192,57,43,0.2); border-color: var(--danger-light); }
+
+    /* ══════════════════════════════════════════
+       BALANCE SUMMARY STRIP — above history
+       ══════════════════════════════════════════ */
+    .balance-strip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px; margin-bottom: 16px;
+    }
+    @media (max-width: 640px) { .balance-strip { grid-template-columns: 1fr 1fr; } }
+
+    .bs-card {
+        border-radius: 10px; padding: 14px 16px;
+        border: 1px solid var(--border); background: var(--bg-elevated);
+        display: flex; flex-direction: column; gap: 4px; min-width: 0;
+    }
+    .bs-card.bs-budget  { border-left: 3px solid var(--gold); }
+    .bs-card.bs-spent   { border-left: 3px solid var(--danger-light); }
+    .bs-card.bs-balance.ok     { border-left: 3px solid #2ecc71; }
+    .bs-card.bs-balance.warn   { border-left: 3px solid #f39c12; }
+    .bs-card.bs-balance.danger { border-left: 3px solid var(--danger-light); }
+    .bs-card.bs-balance.unset  { border-left: 3px solid var(--border-hover); }
+
+    .bs-label {
+        font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.12em; color: var(--text-muted);
+    }
+    .bs-value {
+        font-family: 'Cormorant Garant', serif;
+        font-size: clamp(16px, 2vw, 22px); font-weight: 700;
+        word-break: break-word; overflow-wrap: anywhere;
+    }
+    .bs-value.gold   { color: var(--gold); }
+    .bs-value.red    { color: var(--danger-light); }
+    .bs-value.green  { color: #2ecc71; }
+    .bs-value.amber  { color: #f39c12; }
+    .bs-value.muted  { color: var(--text-muted); font-size: 14px;
+                       font-family: 'Outfit', sans-serif; font-weight: 400; }
+    .bs-sub {
+        font-size: 10px; color: var(--text-muted);
+    }
+
+    /* ── Balance After column ── */
+    .bal-after {
+        font-family: 'Cormorant Garant', serif;
+        font-size: 14px; font-weight: 600; white-space: nowrap;
+    }
+    .bal-after.ok     { color: #2ecc71; }
+    .bal-after.warn   { color: #f39c12; }
+    .bal-after.danger { color: var(--danger-light); }
+    .bal-after.na     { color: var(--text-muted); font-family: 'Outfit', sans-serif;
+                        font-size: 12px; font-weight: 400; }
+
+    /* ── Timestamp cell ── */
+    .ts-cell { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── Live balance preview in add-form ── */
+    .balance-preview-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 12px; border-radius: 7px;
+        background: rgba(46,204,113,0.06); border: 1px solid rgba(46,204,113,0.18);
+        font-size: 12px; color: var(--text-muted);
+        margin-top: 8px; transition: all 0.3s;
+    }
+    .balance-preview-row.warn   { background: rgba(243,156,18,0.07); border-color: rgba(243,156,18,0.25); }
+    .balance-preview-row.danger { background: rgba(231,76,60,0.07); border-color: rgba(231,76,60,0.25); }
+    .balance-preview-row.hidden { display: none; }
+    .bp-label { font-weight: 500; }
+    .bp-value { font-family: 'Cormorant Garant', serif; font-size: 16px; font-weight: 700; color: #2ecc71; }
+    .bp-value.warn   { color: #f39c12; }
+    .bp-value.danger { color: var(--danger-light); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">Manage Dashboard / Expenses</div>
+    <h2>Expenses</h2>
+    <p>Add a new expense and view your full spending history — all in one place.</p>
+</div>
+
+<div class="expenses-layout">
+
+    <!-- ── LEFT: Add Expense Form ── -->
+    <div class="add-panel">
+        <div class="card">
+            <div class="panel-title"> Add Expense</div>
+
+            <!-- Amount preview -->
+            <div class="preview-wrap">
+                <div class="preview-item">
+                    <small>Expense Amount</small>
+                    <div class="amount-preview empty" id="amountPreview">₱0.00</div>
+                </div>
+            </div>
+
+            <!-- Live balance-after-expense preview (visible when budget is set) -->
+            <div class="balance-preview-row hidden" id="balPreviewRow">
+                <span class="bp-label">Balance after this expense</span>
+                <span class="bp-value" id="balPreviewVal">—</span>
+            </div>
+
+            <!-- Server data injected for JS to read cleanly -->
+            <div id="__expData"
+                 data-budget="{{ month_budget }}"
+                 data-spent="{{ month_spent }}"
+                 data-balance="{{ month_balance }}"
+                 style="display:none;"></div>
+
+            <form method="POST" action="{{ url_for('expenses') }}">
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-control"
+                           placeholder="What did you spend on?" required maxlength="200">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Amount (₱)</label>
+                    <input type="text" id="amountDisplay" class="form-control numeric-input"
+                           placeholder="0.00" inputmode="decimal" autocomplete="off" required>
+                    <input type="hidden" name="amount" id="amountHidden">
+                    <input type="hidden" name="total_money" value="0">
+                    <div class="input-meta">
+                        <span class="field-hint">Enter the expense amount</span>
+                        <span class="char-counter" id="amountCounter">0 / 14</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="date" class="form-control"
+                           value="{{ today }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <div class="cat-grid">
+                        {% set cats = [
+                            ('Food',      ''),
+                            ('Transport', ''),
+                            ('Shopping',  ''),
+                            ('Health',    ''),
+                            ('Bills',     ''),
+                            ('General',   ''),
+                            ('Other',     '')
+                        ] %}
+                        {% for cat, em in cats %}
+                        <input type="radio" name="category" id="c_{{ cat }}" value="{{ cat }}"
+                               class="cat-opt" {% if cat == 'General' %}checked{% endif %}>
+                        <label for="c_{{ cat }}" class="cat-lbl">
+                            <span class="cat-em">{{ em }}</span>{{ cat }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-gold"> Save Expense</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── RIGHT: Expense List ── -->
+    <div class="list-panel">
+        <div class="card" style="padding: 22px;">
+            <div class="list-header">
+                <div class="panel-title"> Expense History</div>
+            </div>
+
+            <!-- ── Balance Summary Strip ── -->
+            {% set bh_pct = [(month_spent / month_budget * 100), 100] | min if month_budget > 0 else 0 %}
+            {% set bal_cls = 'danger' if bh_pct >= 100 else ('warn' if bh_pct >= 80 else ('ok' if month_budget > 0 else 'unset')) %}
+            <div class="balance-strip">
+                <div class="bs-card bs-budget">
+                    <span class="bs-label"> Budget · {{ current_month_label }}</span>
+                    <span class="bs-value gold">
+                        {% if month_budget > 0 %}₱{{ month_budget | peso }}{% else %}Not set{% endif %}
+                    </span>
+                    <span class="bs-sub">Monthly budget</span>
+                </div>
+                <div class="bs-card bs-spent">
+                    <span class="bs-label"> Spent This Month</span>
+                    <span class="bs-value red">₱{{ month_spent | peso }}</span>
+                    <span class="bs-sub">{{ month_total | default(0) | peso }} total recorded</span>
+                </div>
+                <div class="bs-card bs-balance {{ bal_cls }}">
+                    <span class="bs-label"> Balance Remaining</span>
+                    <span class="bs-value {% if month_budget == 0 %}muted{% elif bh_pct >= 100 %}red{% elif bh_pct >= 80 %}amber{% else %}green{% endif %}">
+                        {% if month_budget > 0 %}
+                            {% if month_balance < 0 %}-{% endif %}₱{{ month_balance | abs | peso }}
+                        {% else %}—{% endif %}
+                    </span>
+                    <span class="bs-sub">
+                        {% if month_budget > 0 %}{{ bh_pct | round(1) }}% of budget used{% else %}Set a budget to track balance{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('expenses') }}">
+                <div class="filter-row">
+                    <select name="category" class="form-control" onchange="this.form.submit()">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat['category'] }}"
+                                {% if category_filter == cat['category'] %}selected{% endif %}>
+                            {{ cat['category'] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <select name="sort" class="form-control" onchange="this.form.submit()">
+                        <option value="date_desc"   {% if sort == 'date_desc'   %}selected{% endif %}>Newest First</option>
+                        <option value="date_asc"    {% if sort == 'date_asc'    %}selected{% endif %}>Oldest First</option>
+                        <option value="amount_desc" {% if sort == 'amount_desc' %}selected{% endif %}>Highest Amount</option>
+                        <option value="amount_asc"  {% if sort == 'amount_asc'  %}selected{% endif %}>Lowest Amount</option>
+                    </select>
+                    <a href="{{ url_for('expenses') }}" class="btn-sm-outline">✕ Clear</a>
+                    <button type="button" class="btn-refresh" id="refreshBtn">
+                        <span class="refresh-icon">↻</span>
+                        <span class="refresh-label">Refresh</span>
+                    </button>
+                </div>
+            </form>
+
+            {% if expense_list %}
+            <div class="total-strip">
+                <span>
+                    {{ expense_list|length }} record{{ 's' if expense_list|length != 1 }}
+                    {% if category_filter %} · {{ category_filter }}{% endif %}
+                </span>
+                <strong>₱{{ "%.2f"|format(expense_list | sum(attribute='amount')) }}</strong>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Date &amp; Time</th>
+                            <th>Amount</th>
+                            <th>Balance After</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in expense_list %}
+                        {% set ba = balance_after_map.get(e['id']) %}
+                        {% if ba is not none %}
+                            {% set ba_pct = (((month_budget - ba) / month_budget) * 100) if month_budget > 0 else 0 %}
+                            {% set ba_cls = 'danger' if ba < 0 else ('warn' if ba_pct >= 80 else 'ok') %}
+                        {% endif %}
+                        <tr>
+                            <td style="color:var(--text-muted);font-size:12px;">{{ loop.index }}</td>
+                            <td style="color:var(--text-primary);font-weight:500;">{{ e['description'] }}</td>
+                            <td><span class="badge badge-{{ e['category']|lower }}">{{ e['category'] }}</span></td>
+                            <td>
+                                <div style="font-size:13px;">{{ e['date'] }}</div>
+                                {% if e['created_at'] %}
+                                <div class="ts-cell">{{ e['created_at'][:16] }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="amount-cell">₱{{ "%.2f"|format(e['amount']) }}</td>
+                            <td>
+                                {% if ba is not none %}
+                                <span class="bal-after {{ ba_cls }}">
+                                    {% if ba < 0 %}-{% endif %}₱{{ ba | abs | peso }}
+                                </span>
+                                {% else %}
+                                <span class="bal-after na">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST"
+                                      action="{{ url_for('delete_expense', expense_id=e['id']) }}"
+                                      onsubmit="return confirm('Delete this expense?');">
+                                    <input type="hidden" name="next" value="expenses">
+                                    <button type="submit" class="action-del">🗑 Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🧾</div>
+                <h3>No expenses yet</h3>
+                <p>
+                    {% if category_filter %}
+                        No expenses in "{{ category_filter }}".
+                    {% else %}
+                        Use the form on the left to add your first expense.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+(function () {
+    /* ── Server values from injected data element ── */
+    var expData     = document.getElementById('__expData');
+    var SRV_BUDGET  = expData ? parseFloat(expData.dataset.budget)  || 0 : 0;
+    var SRV_SPENT   = expData ? parseFloat(expData.dataset.spent)   || 0 : 0;
+    var SRV_BALANCE = expData ? parseFloat(expData.dataset.balance) || 0 : 0;
+
+    /* ── Digit limits (no numeric ceiling snap) ── */
+    var MAX_INT_DIGITS = 12;
+    var MAX_DEC_DIGITS = 2;
+
+    /* ── DOM refs ── */
+    var amountDisplay = document.getElementById('amountDisplay');
+    var amountHidden  = document.getElementById('amountHidden');
+    var amountPreview = document.getElementById('amountPreview');
+    var amountCounter = document.getElementById('amountCounter');
+    var balRow        = document.getElementById('balPreviewRow');
+    var balVal        = document.getElementById('balPreviewVal');
+
+    /* ── Helpers ── */
+    function sanitize(s) {
+        s = s.replace(/[^0-9.]/g, '');
+        var parts = s.split('.');
+        if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
+        parts = s.split('.');
+        var ip = (parts[0] || '').slice(0, MAX_INT_DIGITS);
+        var dp = parts[1] !== undefined ? parts[1].slice(0, MAX_DEC_DIGITS) : undefined;
+        return dp !== undefined ? ip + '.' + dp : ip;
+    }
+    function addCommas(s) {
+        var parts = s.split('.');
+        var ip = (parts[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return parts.length > 1 ? ip + '.' + parts[1] : ip;
+    }
+    function fmt(num) {
+        return '₱' + Math.abs(num).toLocaleString('en-PH',
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function scalePreview(el, text) {
+        var len = text.length;
+        el.style.fontSize = len <= 10 ? '26px' : len <= 13 ? '20px' : len <= 16 ? '15px' : '13px';
+    }
+
+    /* ── Core input handler ── */
+    function handleInput(displayEl, hiddenEl, previewEl, counterEl, minVal) {
+        var pos    = displayEl.selectionStart;
+        var oldLen = displayEl.value.length;
+        var raw    = sanitize(displayEl.value);
+        var disp   = addCommas(raw);
+        displayEl.value = disp;
+        var diff = disp.length - oldLen;
+        try { displayEl.setSelectionRange(pos + diff, pos + diff); } catch(e) {}
+
+        var num = parseFloat(raw);
+        hiddenEl.value = (!isNaN(num) && num > 0) ? num : '';
+
+        if (raw && !isNaN(num) && num >= minVal) {
+            var label = fmt(num);
+            previewEl.textContent = label;
+            previewEl.classList.remove('empty');
+            scalePreview(previewEl, label);
+        } else {
+            previewEl.textContent = '₱0.00';
+            previewEl.classList.add('empty');
+            previewEl.style.fontSize = '26px';
+        }
+
+        var digits = disp.replace(/[^0-9]/g, '').length;
+        var limit  = MAX_INT_DIGITS + MAX_DEC_DIGITS;
+        counterEl.textContent = digits + ' / ' + limit;
+        counterEl.classList.toggle('warn', digits >= limit);
+    }
+
+    /* ── Live balance preview after this expense ── */
+    function updateBalancePreview() {
+        if (!balRow || !balVal) return;
+        var delta = parseFloat(amountHidden.value) || 0;
+        if (SRV_BUDGET <= 0 || delta <= 0) {
+            balRow.className = 'balance-preview-row hidden';
+            return;
+        }
+        var after = SRV_BALANCE - delta;
+        var pct   = ((SRV_SPENT + delta) / SRV_BUDGET) * 100;
+        var cls   = pct >= 100 ? 'danger' : pct >= 80 ? 'warn' : '';
+
+        balRow.className  = 'balance-preview-row' + (cls ? ' ' + cls : '');
+        balVal.className  = 'bp-value' + (cls ? ' ' + cls : '');
+        balVal.textContent = (after < 0 ? '-' : '') + fmt(after);
+
+        /* Push live delta to sidebar widget */
+        window.dispatchEvent(new CustomEvent('sb:preview', { detail: { delta: delta } }));
+    }
+
+    /* ── Keydown guard ── */
+    function numericOnly(e) {
+        var ok = ['Backspace','Delete','ArrowLeft','ArrowRight',
+                  'ArrowUp','ArrowDown','Tab','Enter','Home','End'];
+        if (ok.includes(e.key) || e.ctrlKey || e.metaKey) return;
+        if (!/[\d.]/.test(e.key)) e.preventDefault();
+    }
+
+    /* ── Paste handler ── */
+    function onPaste(e, displayEl, hiddenEl, previewEl, counterEl, minVal) {
+        e.preventDefault();
+        var pasted  = (e.clipboardData || window.clipboardData).getData('text');
+        var cur     = displayEl.selectionStart;
+        var current = displayEl.value;
+        displayEl.value = current.slice(0, cur) + pasted + current.slice(displayEl.selectionEnd);
+        handleInput(displayEl, hiddenEl, previewEl, counterEl, minVal);
+    }
+
+    /* ── Wire Amount ── */
+    if (amountDisplay) {
+        amountDisplay.addEventListener('input', function () {
+            handleInput(amountDisplay, amountHidden, amountPreview, amountCounter, 0.01);
+            updateBalancePreview();
+        });
+        amountDisplay.addEventListener('keydown', numericOnly);
+        amountDisplay.addEventListener('paste', function (e) {
+            onPaste(e, amountDisplay, amountHidden, amountPreview, amountCounter, 0.01);
+        });
+    }
+
+    /* ── Form guard ── */
+    if (amountDisplay) {
+        var expenseForm = amountDisplay.closest('form');
+        expenseForm.addEventListener('submit', function (e) {
+            var amtNum = parseFloat(amountHidden.value);
+            if (!amountHidden.value || isNaN(amtNum) || amtNum < 0.01) {
+                e.preventDefault();
+                amountDisplay.classList.add('over-limit');
+                amountDisplay.focus();
+                amountDisplay.placeholder = 'Enter a valid amount';
+            } else {
+                /* Clear sidebar preview on submit */
+                window.dispatchEvent(new CustomEvent('sb:preview', { detail: { delta: 0 } }));
+            }
+        });
+    }
+    /* ── Refresh button ── */
+    var refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function () {
+            /* 1. Animate into loading state */
+            refreshBtn.classList.add('refreshing');
+            var label = refreshBtn.querySelector('.refresh-label');
+            if (label) label.textContent = 'Refreshing…';
+
+            /* 2. Reload after a brief moment so the spin is visible */
+            setTimeout(function () {
+                window.location.reload();
+            }, 420);
+        });
+    }
+})();
+</script>
+{% endblock %}
