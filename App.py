@@ -78,6 +78,14 @@ def peso(value):
         return "{:,.2f}".format(float(value))
     except:
         return "0.00"
+
+
+@app.template_filter('commaint')
+def commaint(value):
+    try:
+        return "{:,}".format(int(value))
+    except:
+        return "0"
 # ─────────────────────────────
 # ERROR HANDLER
 # ─────────────────────────────
