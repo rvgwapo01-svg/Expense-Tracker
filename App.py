@@ -33,18 +33,18 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 # ─────────────────────────────────────────────
 # JINJA FILTERS (FIXED CRASH)
 # ─────────────────────────────────────────────
-@app.template_filter("peso")
-def peso(value):
+@app.template_filter('peso')
+def peso_filter(value):
     try:
-        return "{:,.2f}".format(float(value))
+        return "₱{:,.2f}".format(float(value or 0))
     except:
-        return "0.00"
+        return "₱0.00"
 
 
-@app.template_filter("commaint")
-def commaint(value):
+@app.template_filter('commaint')
+def commaint_filter(value):
     try:
-        return "{:,}".format(int(value))
+        return "{:,}".format(int(value or 0))
     except:
         return "0"
 
@@ -136,26 +136,47 @@ def register():
 def dashboard():
     uid = session["user_id"]
 
-    conn = get_db()
-    cur = conn.cursor()
+    with get_db() as db:
 
-    cur.execute("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE user_id=%s", (uid,))
-    total = cur.fetchone()[0]
+        total = db.execute(
+            "SELECT COALESCE(SUM(amount),0) AS total FROM expenses WHERE user_id=?",
+            (uid,)
+        ).fetchone()["total"]
 
-    cur.execute("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE user_id=%s", (uid,))
-    latest_total_money = cur.fetchone()[0]
+        latest_row = db.execute(
+            "SELECT total_money FROM expenses WHERE user_id=? ORDER BY date DESC, id DESC LIMIT 1",
+            (uid,)
+        ).fetchone()
 
-    net_balance = latest_total_money - total
+        latest_total_money = latest_row["total_money"] if latest_row else 0
 
-    conn.close()
+        count = db.execute(
+            "SELECT COUNT(*) AS cnt FROM expenses WHERE user_id=?",
+            (uid,)
+        ).fetchone()["cnt"]
+
+        recent = db.execute(
+            "SELECT * FROM expenses WHERE user_id=? ORDER BY date DESC LIMIT 5",
+            (uid,)
+        ).fetchall()
+
+        cat_rows = db.execute(
+            "SELECT category, SUM(amount) AS total_expense, COUNT(*) AS txn_count "
+            "FROM expenses WHERE user_id=? GROUP BY category",
+            (uid,)
+        ).fetchall()
+
+    net_balance = (latest_total_money or 0) - (total or 0)
 
     return render_template(
         "dashboard.html",
-        total=total,
-        latest_total_money=latest_total_money,
+        total=total or 0,
+        latest_total_money=latest_total_money or 0,
         net_balance=net_balance,
+        count=count or 0,
+        recent=recent or [],
+        cat_chart=cat_rows or [],
     )
-
 
 # ─────────────────────────────────────────────
 # EXPENSES (SAFE BASIC VERSION)
