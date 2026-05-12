@@ -10,7 +10,7 @@ from flask import (
 )
 
 from werkzeug.security import check_password_hash, generate_password_hash
-from pg8000.native import Connection
+from pg8000.native import Connection # pyright: ignore[reportMissingImports]
 
 # ─────────────────────────────
 # APP SETUP
@@ -72,7 +72,12 @@ def init_db():
         ON CONFLICT DO NOTHING
     """)
 
-
+@app.template_filter('peso')
+def peso(value):
+    try:
+        return "{:,.2f}".format(float(value))
+    except:
+        return "0.00"
 # ─────────────────────────────
 # ERROR HANDLER
 # ─────────────────────────────
